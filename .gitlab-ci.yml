@@ -1,0 +1,38 @@
+image: docker
+
+variables:
+  CONTAINER_SETUP_IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG-setup
+
+before_script:
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  - apk add --no-cache jq
+
+stages:
+  - setup
+  - quality
+  - production
+
+build setup image:
+  stage: setup
+  script:
+    - docker build --pull -t $CONTAINER_SETUP_IMAGE_NAME --target setup-stage .
+    - docker push $CONTAINER_SETUP_IMAGE_NAME
+
+verify code lint:
+  stage: quality
+  script:
+    - docker pull $CONTAINER_SETUP_IMAGE_NAME
+    - docker run --rm $CONTAINER_SETUP_IMAGE_NAME npm run lint
+
+build production image:
+  stage: production
+  only:
+    - master
+  script:
+    - docker pull $CONTAINER_SETUP_IMAGE_NAME || true
+    - export VERSION=$(cat package.json | jq -r .version)
+
+    - docker build --pull -t $CI_REGISTRY_IMAGE:latest .
+    - docker tag $CI_REGISTRY_IMAGE:latest $CI_REGISTRY_IMAGE:$VERSION
+    - docker push $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:$VERSION
