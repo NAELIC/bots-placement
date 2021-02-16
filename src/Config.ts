@@ -12,6 +12,7 @@ const Config = {
   ]),
   movingWay: get('MOVING_WAY').required().asBool(),
   formation: get('FORMATION').default('start').asString(),
+  yellow: get('YELLOW').default('true').asBool(),
 }
 
 export default Config
